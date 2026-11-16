@@ -1,0 +1,26 @@
+# 调试和发布专用的目录，整个不进仓库。里面是：
+#   PnWind.exe   后端的可执行文件（build_win.cmd 编出来的；Linux 用的 PnWind 由 build_linux.cmd 编出来）
+#   conf/        它自己的一份配置文件（从仓库的 conf/ 复制，库和密钥换成自己的）
+#   views/       模板目录（从仓库的 views/ 复制）
+#   public/      前端的构建产物（web 目录里 pnpm build，再把 web/dist 复制过来）
+#   logs/        运行时的日志（程序自己建，在可执行文件旁边）
+#   uploads/     上传的文件
+/_bin/
+
+# 其他构建产物
+*.exe
+*.test
+*.out
+/coverage.*
+
+# 本地私有的文件：名字里带 .local. 的一律不进仓库
+*.local.*
+
+# 编辑器与系统文件
+*.swp
+.DS_Store
+Thumbs.db
+
+# 前端依赖与产物：构建出来的 web/dist 要复制到 _bin/public
+node_modules/
+/web/dist/

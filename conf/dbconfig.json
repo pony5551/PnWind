@@ -1,0 +1,23 @@
+{
+  "DeviceId": 1,
+  "ServerAddr": ":9001",
+  "ProxyProtocol": false,
+  "ProxyTrusted": [],
+  "SysApiEnabled": true,
+  "OpenDataDelete": true,
+  "LoadRuters": [
+    { "name": "web", "prefix": "/web" },
+    { "name": "api", "prefix": "/api" }
+  ],
+  "JwtSecret": "change-me",
+  "dbs": {
+    "db1": {
+      "DBDriver": "postgres",
+      "DBHost": "127.0.0.1",
+      "DBPort": "5432",
+      "DBUser": "postgres",
+      "DBPass": "",
+      "DBName": "pnwind"
+    }
+  }
+}

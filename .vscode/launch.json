@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PnWind（_bin）",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}",
+            // 调试版编到 _bin，进到 _bin 里运行：conf/、views/、public/、uploads/ 都按当前目录找，和手动启动 PnWind.exe 一样。
+            // 单独起名：调试结束后 dlv 会删掉它编出来的文件，不能和 build_win.cmd 编出的 PnWind.exe 同名。
+            "output": "${workspaceFolder}/_bin/PnWind_debug.exe",
+            "cwd": "${workspaceFolder}/_bin"
+        }
+    ]
+}

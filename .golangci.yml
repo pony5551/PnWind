@@ -1,0 +1,69 @@
+# golangci-lint v2 的配置。
+# 不用安装，直接从源码运行（第一次要下载、构建，之后走缓存；版本固定在 v2.15.0，升级时一起看这份配置要不要调）：
+#   go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run ./...
+#   go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 config verify    改了这份配置之后校验格式
+# 现在的代码按这份配置还有几十条提示。
+version: "2"
+
+linters:
+  # standard：errcheck、govet、ineffassign、staticcheck、unused
+  default: standard
+  enable:
+    - errorlint        # 用 %w 包装，用 errors.Is / errors.As 判断
+    - misspell         # 英文拼写
+    - nolintlint       # //nolint 必须写明检查器和理由
+    - revive           # 常见写法
+    - rowserrcheck     # 遍历结果集后检查 rows.Err()
+    - sqlclosecheck    # rows、stmt 用完必须关闭
+    - unconvert        # 多余的类型转换
+  # 不启用 gochecknoinits：页面是在各自包的 init() 里注册的（sysmgr/00_registercontroller.go、sysauth），
+  # 内核的日志也是在 init() 里接上日志文件的（core/00_init.go）。
+  settings:
+    errcheck:
+      exclude-functions:
+        # 事务里写的 defer tx.Rollback()：已经提交的话它什么都不做，返回值不用看
+        - (*database/sql.Tx).Rollback
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      enable-default-rules: true
+      rules:
+        # 名字有自己的约定：Page_list、DeviceId、UserId、GetUserId 等，不按 Go 的惯例改写。
+        - name: var-naming
+          disabled: true
+        # 现在的代码大多不按 Go 的惯例写文档注释（每个导出的名字、每个包都写，而且以名字开头），不拿这两条要求它。
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+  exclusions:
+    presets:
+      - std-error-handling
+      - common-false-positives
+    # 下面几处不检查、也不格式化：
+    #   core/validation/govalidator/  第三方库 asaskevich/govalidator 的副本
+    #   core/pnlibs/                  项目自带的通用库，保持它自己的写法
+    #   core/pnamqp/                  还没有整理过的可选组件
+    #   core/util/、syscore/utils/、syscore/PnWebSocket/
+    #                                 还没有整理过的代码，暂时不检查
+    paths:
+      - core/validation/govalidator/
+      - core/pnlibs/
+      - core/pnamqp/
+      - core/util/
+      - syscore/utils/
+      - syscore/PnWebSocket/
+
+# 格式以 gofmt 为准
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - core/validation/govalidator/
+      - core/pnlibs/
+      - core/pnamqp/
+      - core/util/
+      - syscore/utils/
+      - syscore/PnWebSocket/
