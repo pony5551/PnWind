@@ -139,8 +139,12 @@ func (c *SysAdminService) Insert(pnctx *pncontext.PnContext, form *models.SysAdm
 		pg.Array(roles), userId, form.Username, form.RealName, form.Gender, hashed,
 		form.Phone, form.Email, form.Status, form.Avatar, form.DeptId, pnctx.IP(),
 	)
-	err = utils.GetVerfication(err)
-	return
+	return c.dupErr(err)
+}
+
+// dupErr 用户名和别的管理员重复时，换成说得出原因的提示；别的错误原样返回
+func (c *SysAdminService) dupErr(err error) error {
+	return utils.DupErr(err, map[string]string{"db_sys_admin_username_key": "用户名已存在"})
 }
 
 // Update 修改用户（不更改密码）
@@ -163,6 +167,7 @@ func (c *SysAdminService) Update(pnctx *pncontext.PnContext, form *models.SysAdm
 		pg.Array(roles), form.Avatar, form.DeptId,
 		form.Id,
 	)
+	err = c.dupErr(err)
 	if err == nil && form.Status != 1 {
 		err = c.dropTokens(pnctx, form.Id)
 	}

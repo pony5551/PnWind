@@ -64,7 +64,7 @@ _bin/
 └── uploads/          上传的文件（用到时才有）
 ```
 
-1. **建库。** 建一个空的数据库，依次执行 `sql/0001_create_tables.sql`（建表）和 `sql/0002_seed_data.sql`（初始数据）。以后表结构有变化时，`sql/` 里会多出 `upgrade_<日期>_<表名>.sql`：已经建过表的库，按脚本开头写的先后和注意事项执行。
+1. **建库。** 建一个空的数据库，依次执行 `sql/0001_create_tables.sql`（建表）和 `sql/0002_seed_data.sql`（初始数据）。以后表结构或初始数据有变化时，`sql/` 里会多出 `upgrade_<日期>_<表名>.sql`：已经建过表的库，按脚本开头写的先后和注意事项执行。
 
 2. **配置。** 新建 `_bin/conf/`，把 `conf/dbconfig.json` 复制进去，填上数据库的地址、账号、口令、库名，把 `JwtSecret` 换成自己随机生成的一串。常用的几项：
 
@@ -111,7 +111,7 @@ _bin/
 路由按组装，一组一个地址前缀，由配置项 `LoadRuters` 决定。现在的页面都注册在 `web` 这一组，前缀是 `/web`。
 
 - **登录：** `POST /web/sysauth/auth/login`，请求体 `{"username": "...", "password": "..."}`。`password`（和下面的 `password2`）不是明文：是明文连做三次 MD5 之后的 32 位小写十六进制串，前端的登录页就是这样提交的，直接调接口时要自己先算（默认管理员的 `admin123` 算出来是 `105dad91250a07b716d6a714a3e676b8`）。响应的 `data.accessToken` 放进之后每个请求的 `Authorization: Bearer <令牌>` 头里。一个账号只能有一处登录：已经在别处登录着时回 `-10034`，带上二次密码 `password2` 再登录，会把那一处踢下线。退出是 `POST /web/sysauth/auth/logout`。
-- **页面：** `/web/<页面地址>/<act>`，例如部门列表是 `POST /web/sysmgr/sysset/sysdept/list`。除了登录页，都要先登录，而且这个操作要在菜单表里配了权限。有哪些页面、每个页面有哪些 act，启动时会打印出来，`GET /web/` 也返回这一份。
+- **页面：** `/web/<页面地址>/<act>`，例如部门列表是 `POST /web/sysmgr/sysset/sysdept/list`。除了登录页，都要先登录，而且这个操作要在菜单表里配了权限（取主菜单 `getmainmenu`、取系统参数 `getsysconfig` 登录了就能调）。有哪些页面、每个页面有哪些 act，启动时会打印出来，`GET /web/` 也返回这一份。
 - **响应：** 统一是 `{"code": 0, "message": "", "data": ...}`。`code` 为 0 表示成功，负数是错误码（定义在 `syscore/utils/mgr_define.go`）。业务上的错误 HTTP 状态码仍然是 200；令牌有问题（无效，或者已经退出、被顶替）是 401；地址不存在是 404。
 - **健康检查：** `GET /livez`、`GET /readyz`，不用登录。
 - **WebSocket：** `/ws`。

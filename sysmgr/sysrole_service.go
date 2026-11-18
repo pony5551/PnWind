@@ -82,8 +82,12 @@ func (c *SysRoleService) Insert(pnctx *pncontext.PnContext, dataForm *models.Sys
 INSERT INTO db_sys_role (parent_id, name, code, sort, status, remark)
 VALUES (:parent_id, :name, :code, :sort, :status, :remark);`
 	_, err = pnctx.DB.NamedExec(sqlStr, dbParams)
-	err = utils.GetVerfication(err)
-	return err
+	return c.dupErr(err)
+}
+
+// dupErr 角色编码和别的角色重复时，换成说得出原因的提示；别的错误原样返回
+func (c *SysRoleService) dupErr(err error) error {
+	return utils.DupErr(err, map[string]string{"db_sys_role_code_key": "角色编码已存在"})
 }
 
 // Update 修改角色：只改已有的角色，id 不存在回"角色不存在"，不会新增。创建时间、菜单权限不动。
@@ -101,7 +105,7 @@ func (c *SysRoleService) Update(pnctx *pncontext.PnContext, dataForm *models.Sys
 	strSQL := utils.GenerateUpsertSQL("db_sys_role", fields, dbParams,
 		[]string{"id"}, []string{"created_at"}, []string{})
 	if _, err = pnctx.DB.NamedExec(strSQL, dbParams); err != nil {
-		return err
+		return c.dupErr(err)
 	}
 	return err
 }

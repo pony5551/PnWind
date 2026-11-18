@@ -25,8 +25,9 @@ const (
 	// TokenLife 登录令牌的有效期。登录接口回给前端的 expires 用的是同一个值
 	TokenLife = 72 * time.Hour
 
-	superAdmin  = "superadmin"             // 超级管理员的 user_id：不查个人权限
-	mainMenuAct = "m_sysmenus:getmainmenu" // 取主菜单：登录了就能调，不查权限
+	superAdmin   = "superadmin"                // 超级管理员的 user_id：不查个人权限
+	mainMenuAct  = "m_sysmenus:getmainmenu"    // 取主菜单：登录了就能调，不查权限
+	sysConfigAct = "m_sysconfigs:getsysconfig" // 取系统参数：前端登录之后马上要用，登录了就能调，不查权限
 )
 
 // -------------------------------------------------------------------------
@@ -88,7 +89,7 @@ func TokenFromRequest(ctx fiber.Ctx) string {
 //	1. 令牌：签名对、没有过期            不对：HTTP 401，令牌无效（-10010）
 //	2. 令牌还登记在令牌表里              已经退出或被踢下线：HTTP 401，未找到令牌（-10009）
 //	                                     同时记下这个令牌最近一次活动的时间和地址
-//	3. 这个操作在菜单表里登记了按钮行    没有登记：未配置权限（-30001）。取主菜单不用登记，登录了就能调
+//	3. 这个操作在菜单表里登记了按钮行    没有登记：未配置权限（-30001）。取主菜单、取系统参数不用登记，登录了就能调
 //	4. 按钮行上要求记操作日志的          等请求处理完写一条操作日志（请求体怎么记见 logutils.Body）
 //	5. 个人权限：令牌的菜单权限里有它    没有：没有权限（-30002）。超级管理员不查
 //
@@ -127,7 +128,7 @@ func IsAuthenticated(ctx fiber.Ctx) error {
 	pncontext.SetToken(ctx, &tokenList) // 存入页面对象：页面里的 pnctx.TokenList
 
 	// 3. 按钮行
-	if pageAct == mainMenuAct {
+	if pageAct == mainMenuAct || pageAct == sysConfigAct {
 		return ctx.Next()
 	}
 	menuAuth := authmodels.SysMenuAuth{}

@@ -158,7 +158,7 @@ COMMENT ON COLUMN db_sys_dept.sort IS '排序';
 COMMENT ON COLUMN db_sys_dept.status IS '状态';
 COMMENT ON COLUMN db_sys_dept.remark IS '备注';
 
--- 参数表。
+-- 参数表。唯一约束 (sort, key)：分组加键不能重复，程序按"分组.键"取参数的值。
 CREATE SEQUENCE db_sys_config_config_id_seq START WITH 100000 INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 CACHE 1;
 CREATE TABLE db_sys_config (
     config_id bigint NOT NULL DEFAULT nextval('db_sys_config_config_id_seq'::regclass),
@@ -168,9 +168,9 @@ CREATE TABLE db_sys_config (
     remark character varying(255),
     patrn character varying(255),
     expansion character varying(255),
-    CONSTRAINT db_sys_config_pkey PRIMARY KEY (config_id)
+    CONSTRAINT db_sys_config_pkey PRIMARY KEY (config_id),
+    CONSTRAINT db_sys_config_sort_key_key UNIQUE (sort, key)
 );
-CREATE INDEX idx_db_sys_config__sort_key ON db_sys_config USING btree (sort, key);
 
 -- 令牌表：登录一次一行，鉴权时每个请求按 token_id 找到它。ip 只记地址、不带端口。
 -- 唯一约束 (user_type, user_id)：一个账号最多一行，也就是只能有一处登录。

@@ -16,7 +16,7 @@ import {
   actMenuSetGet,
   actMenuSetSave
 } from "@/api/sysmgr/sysset/sysrole";
-import { type Ref, reactive, ref, onMounted, h, watch } from "vue";
+import { type Ref, reactive, ref, onMounted, h, watch, nextTick } from "vue";
 
 export function useRole(treeRef: Ref) {
   const form = reactive({
@@ -253,6 +253,10 @@ export function useRole(treeRef: Ref) {
       isShow.value = true;
       const { code, data } = await actMenuSetGet({ id });
       if (code === 0) {
+        // 先关掉父子联动再勾：联动开着时，勾上目录、页面会把它下面的全部连带勾上，
+        // 面板上显示的比角色实际有的多，一保存就都写进角色
+        isLinkage.value = false;
+        await nextTick();
         treeRef.value.setCheckedKeys(data);
       }
     } else {

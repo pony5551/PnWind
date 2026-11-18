@@ -56,8 +56,12 @@ func (c *SysDeptService) Insert(pnctx *pncontext.PnContext, dataForm *models.Sys
 		VALUES (:parent_id, :name, :principal, :phone, :email, :sort, :status, :remark, :created_at)`
 	dbParams := util.StructToMap(*dataForm, "db")
 	_, err = pnctx.DB.NamedExec(sqlStr, dbParams)
-	err = utils.GetVerfication(err)
-	return err
+	return c.dupErr(err)
+}
+
+// dupErr 部门名称和别的部门重复时，换成说得出原因的提示；别的错误原样返回
+func (c *SysDeptService) dupErr(err error) error {
+	return utils.DupErr(err, map[string]string{"db_sys_dept_name_key": "部门名称已存在"})
 }
 
 // Update 修改部门
@@ -68,7 +72,7 @@ func (c *SysDeptService) Update(pnctx *pncontext.PnContext, dataForm *models.Sys
 		WHERE id=:id`
 	dbParams := util.StructToMap(*dataForm, "db")
 	_, err = pnctx.DB.NamedExec(sqlStr, dbParams)
-	return err
+	return c.dupErr(err)
 }
 
 // Delete 批量删除部门

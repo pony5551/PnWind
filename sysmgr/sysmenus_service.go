@@ -2,6 +2,7 @@ package sysmgr
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -76,8 +77,9 @@ func (c *SysMenusService) ReadLevelMenuMem(pnctx *pncontext.PnContext, menusData
 	}
 }
 
-// ReadLevelMenuAuths 读取某节点的直接子权限标识列表（auths）
-func (c *SysMenusService) ReadLevelMenuAuths(pnctx *pncontext.PnContext, menusData []models.SysMenus, ParentId int64) []string {
+// ReadLevelMenuAuths 读取某节点的直接子权限标识列表（auths）。
+// allow 不是 nil 时只留账号有权限的：按这一行的 name 查，按钮行的 name 就是权限键
+func (c *SysMenusService) ReadLevelMenuAuths(pnctx *pncontext.PnContext, menusData []models.SysMenus, ParentId int64, allow map[string]bool) []string {
 	if pnctx.DB == nil {
 		return nil
 	}
@@ -85,7 +87,7 @@ func (c *SysMenusService) ReadLevelMenuAuths(pnctx *pncontext.PnContext, menusDa
 	for _, v := range menusData {
 		if v.ParentId == ParentId {
 			Auths := strings.ReplaceAll(string(v.Auths), `"`, ``)
-			if Auths != "" {
+			if Auths != "" && (allow == nil || allow[v.Name]) {
 				AuthsList = append(AuthsList, Auths)
 			}
 		}
@@ -96,7 +98,8 @@ func (c *SysMenusService) ReadLevelMenuAuths(pnctx *pncontext.PnContext, menusDa
 // ReadLevelMenuMemForMain 递归组装前端路由菜单（仅包含 type 0/1/2 的菜单项，含完整 meta 结构）
 // parentRank 为父节点的 effectiveRank（顶层传 0），子节点 effectiveRank = parentRank*1000 + v.Rank，
 // 保证扁平化排序后父节点始终在子节点前面，面包屑 getParentPaths DFS 能正确识别层级。
-func (c *SysMenusService) ReadLevelMenuMemForMain(pnctx *pncontext.PnContext, menusData []models.SysMenus, JsonItem interface{}, ParentId int64, menuclass string, menutag string, Isfirst bool, parentRank int64) {
+// allow 是账号的权限键，按它过滤；nil 表示不过滤（超级管理员）。
+func (c *SysMenusService) ReadLevelMenuMemForMain(pnctx *pncontext.PnContext, menusData []models.SysMenus, JsonItem interface{}, ParentId int64, menuclass string, menutag string, Isfirst bool, parentRank int64, allow map[string]bool) {
 	if pnctx.DB == nil {
 		return
 	}
@@ -136,12 +139,21 @@ func (c *SysMenusService) ReadLevelMenuMemForMain(pnctx *pncontext.PnContext, me
 				mnMeta["fixedTag"] = v.FixedTag
 				mnMeta["activePath"] = v.ActivePath
 				mnMeta["rank"] = effectiveRank
-				mnMeta["auths"] = c.ReadLevelMenuAuths(pnctx, menusData, v.Id)
+				auths := c.ReadLevelMenuAuths(pnctx, menusData, v.Id, allow)
+				mnMeta["auths"] = auths
 
 				mn["children"] = []interface{}{}
-				c.ReadLevelMenuMemForMain(pnctx, menusData, &mn, v.Id, menuclass, menutag, false, effectiveRank)
+				c.ReadLevelMenuMemForMain(pnctx, menusData, &mn, v.Id, menuclass, menutag, false, effectiveRank, allow)
 
 				LChildren := mn["children"].([]interface{})
+				// 按权限过滤：目录（下面有菜单项）要下面有给出去的菜单才给；
+				// 页面在它自己的权限键、或者下面某个按钮的权限键在 allow 里时给
+				if allow != nil && len(LChildren) == 0 {
+					isDir := slices.ContainsFunc(menusData, func(m models.SysMenus) bool { return m.ParentId == v.Id && m.MenuType != 3 })
+					if isDir || (len(auths) == 0 && !allow[v.Name]) {
+						continue
+					}
+				}
 				if len(LChildren) == 0 {
 					delete(mn, "children")
 				} else {
@@ -178,8 +190,17 @@ INSERT INTO db_sys_menus (
 	dbParams := util.StructToMap(*dataForm, "json")
 	dbParams["auths"] = utils.JsonbParam(dataForm.Auths) // auths 是 jsonb 列，不能直接传 json.RawMessage
 	_, err = pnctx.DB.NamedExec(sqlStr, dbParams)
-	err = utils.GetVerfication(err)
-	return err
+	return c.dupErr(err, dataForm)
+}
+
+// dupErr 路由名称和别的菜单重复时（唯一索引 idx_db_sys_menus_name），换成说得出原因的提示；别的错误原样返回。
+// 按钮行的 name 取自权限标识（见 fixAuths），按钮就说权限标识重复
+func (c *SysMenusService) dupErr(err error, dataForm *models.MenusForm) error {
+	msg := "路由名称已存在"
+	if dataForm.MenuType == 3 {
+		msg = "权限标识已存在"
+	}
+	return utils.DupErr(err, map[string]string{"idx_db_sys_menus_name": msg})
 }
 
 // Update 修改菜单（使用 GenerateUpsertSQL 自动生成 UPDATE 语句）
@@ -200,7 +221,7 @@ func (c *SysMenusService) Update(pnctx *pncontext.PnContext, dataForm *models.Me
 	strSQL := utils.GenerateUpsertSQL("db_sys_menus", fields, dbParams,
 		[]string{"id"}, []string{"created_at"}, []string{})
 	if _, err = pnctx.DB.NamedExec(strSQL, dbParams); err != nil {
-		return err
+		return c.dupErr(err, dataForm)
 	}
 	return err
 }

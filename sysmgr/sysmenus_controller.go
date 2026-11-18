@@ -32,7 +32,7 @@ func (c *SysMenusCont) loadMenuData(pnctx *pncontext.PnContext) (menusData []mod
 	return
 }
 
-// 获取主体菜单（用于前端路由渲染，含 meta 结构）
+// 获取主体菜单（用于前端路由渲染，含 meta 结构）：只给这个账号有权限的菜单和按钮，见 menuAllow
 func (c *SysMenusCont) Page_getmainmenu(pnctx *pncontext.PnContext) error {
 	menusData, err := c.loadMenuData(pnctx)
 	if err != nil {
@@ -43,8 +43,25 @@ func (c *SysMenusCont) Page_getmainmenu(pnctx *pncontext.PnContext) error {
 		return err
 	}
 	menuRoot := &SysMenusListRoot{Data: []SysMenusListItem{}}
-	c.SVC.ReadLevelMenuMemForMain(pnctx, menusData, menuRoot, parentId, menuclass, menutag, true, 0)
+	c.SVC.ReadLevelMenuMemForMain(pnctx, menusData, menuRoot, parentId, menuclass, menutag, true, 0, menuAllow(pnctx))
 	return pnctx.RespOK(menuRoot.Data, "")
+}
+
+// menuAllow 主菜单按它过滤：这个账号的权限键（登录时由这个账号的各个角色的权限合起来，记在令牌表里）。
+// 超级管理员回 nil，表示不过滤：和登录校验一样，不查个人权限。
+func menuAllow(pnctx *pncontext.PnContext) map[string]bool {
+	token, _ := pnctx.TokenList.(*models.SysTokenList) // 取主菜单要登录，登录校验放进来的就是它
+	if token == nil {
+		return map[string]bool{}
+	}
+	if token.UserId == "superadmin" {
+		return nil
+	}
+	allow := make(map[string]bool, len(token.UserMenuSet))
+	for _, key := range token.UserMenuSet {
+		allow[key] = true
+	}
+	return allow
 }
 
 // 获取菜单列表（用于菜单管理页面，含完整字段）
@@ -85,10 +102,12 @@ func (c *SysMenusCont) Page_add(pnctx *pncontext.PnContext) error {
 }
 
 // fixAuths 整理表单里的权限标识 auths，新增、修改都先过它：
-// JSON 的 null 当成没传；按钮（MenuType 3）的 name 取自 auths（去掉引号），所以按钮的 auths 不能没有、不能是空串。
+// 没传、传的是 JSON 的 null，都存成 JSON 的空串 ""（和前端不填时传的一样）：这一列存了 NULL，
+// 读菜单时那一行读不出来，所有人的菜单就都取不到了；
+// 按钮（MenuType 3）的 name 取自 auths（去掉引号），所以按钮的 auths 不能没有、不能是空串。
 func fixAuths(dataForm *models.MenusForm) error {
-	if string(dataForm.Auths) == "null" {
-		dataForm.Auths = nil
+	if len(dataForm.Auths) == 0 || string(dataForm.Auths) == "null" {
+		dataForm.Auths = []byte(`""`)
 	}
 	if dataForm.MenuType == 3 {
 		dataForm.Name = strings.ReplaceAll(string(dataForm.Auths), `"`, ``)

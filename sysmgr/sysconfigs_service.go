@@ -80,7 +80,7 @@ func (c *SysConfigsService) ReadList(pnctx *pncontext.PnContext, aParams models.
 	return
 }
 
-// Insert 新增配置项（sort != 'sys'）
+// Insert 新增配置项（sort != 'sys'）。分组加键不能和已有的重复（唯一约束 db_sys_config_sort_key_key）
 func (c *SysConfigsService) Insert(pnctx *pncontext.PnContext, form *models.SysConfigAddForm) (err error) {
 	sqlStr := `INSERT INTO db_sys_config (sort, key, value, remark, patrn, expansion)
                VALUES (:sort, :key, :value, :remark, :patrn, :expansion)`
@@ -92,8 +92,7 @@ func (c *SysConfigsService) Insert(pnctx *pncontext.PnContext, form *models.SysC
 		"patrn":     form.Patrn,
 		"expansion": form.Expansion,
 	})
-	err = utils.GetVerfication(err)
-	return
+	return utils.DupErr(err, map[string]string{"db_sys_config_sort_key_key": "这个分组里已经有这个键"})
 }
 
 // Update 修改配置值（系统项 sort='sys' 也允许修改值）

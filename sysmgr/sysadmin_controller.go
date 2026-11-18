@@ -5,7 +5,6 @@ import (
 
 	"github.com/pony5551/PnWind/core/controller"
 	"github.com/pony5551/PnWind/core/pncontext"
-	log "github.com/pony5551/PnWind/core/pnlogrus"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
 )
@@ -35,8 +34,7 @@ func (c *SysAdminCont) Page_add(pnctx *pncontext.PnContext) error {
 		return err
 	}
 	if err := c.SVC.Insert(pnctx, &form); err != nil {
-		log.Errorln(err)
-		return pnctx.RespErr(utils.Resp_code_paramParsel20002, err.Error())
+		return err
 	}
 	return pnctx.RespOK(nil, "新增用户成功.")
 }

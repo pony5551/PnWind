@@ -79,7 +79,8 @@ func (c *SysConfigsCont) Page_loadsysconfig(pnctx *pncontext.PnContext) error {
 	return pnctx.RespOK(nil, "加载成功.")
 }
 
-// Page_getsysconfig 读取系统基础设置
+// Page_getsysconfig 读取系统基础设置：整张参数表。登录了的人都能调（前端登录之后马上要用），
+// 所以参数表里不要放口令、密钥这类值
 func (c *SysConfigsCont) Page_getsysconfig(pnctx *pncontext.PnContext) error {
 	confs := map[string]string{}
 	if err := utils.GetSysConfig(pnctx.DB, confs); err != nil {

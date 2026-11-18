@@ -102,7 +102,8 @@ func (c *UserAuthCont) Page_Login(pnctx *pncontext.PnContext) error {
 		return pnctx.RespErr(utils.Resp_code_loginFail10005, utils.RespCodeEnum(utils.Resp_code_loginFail10005).CodeParse())
 	}
 	var roleMenuSets []pg.StringArray
-	err = db.Select(&roleMenuSets, "select menuset from db_sys_role where code = any($1) order by id", user.Roles)
+	//停用的角色(status不是1)不给权限
+	err = db.Select(&roleMenuSets, "select menuset from db_sys_role where code = any($1) and status = 1 order by id", user.Roles)
 	if err != nil {
 		log.Println(err)
 		return pnctx.RespErr(utils.Resp_code_loginFail10005, utils.RespCodeEnum(utils.Resp_code_loginFail10005).CodeParse())

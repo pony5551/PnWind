@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	pg "github.com/lib/pq"
-	"github.com/lib/pq/pqerror"
 )
 
 // SysUsersService 用户管理页的服务（用户表 db_sys_users）
@@ -157,15 +156,10 @@ WHERE id=:id`
 
 // dupErr 邮箱、手机号和别的用户重复时，把数据库的唯一冲突换成说得出原因的提示（-20002，不记日志）；别的错误原样返回
 func (c *SysUsersService) dupErr(err error) error {
-	if pqErr := pg.As(err, pqerror.UniqueViolation); pqErr != nil {
-		switch pqErr.Constraint {
-		case "db_sys_users_email_key":
-			return pncontext.NewError(utils.Resp_code_paramParsel20002, "邮箱已被其他用户使用")
-		case "db_sys_users_phone_key":
-			return pncontext.NewError(utils.Resp_code_paramParsel20002, "手机号已被其他用户使用")
-		}
-	}
-	return err
+	return utils.DupErr(err, map[string]string{
+		"db_sys_users_email_key": "邮箱已被其他用户使用",
+		"db_sys_users_phone_key": "手机号已被其他用户使用",
+	})
 }
 
 // RoleList 获取启用角色列表（按 parentId 过滤，parentId>0 时过滤，否则返回全部）
