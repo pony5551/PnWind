@@ -74,7 +74,7 @@ PnWind：Go 中后台用户管理框架（Fiber v3 · sqlx · PostgreSQL），�
 照 `sysmgr/` 里部门管理的三个文件写（`sysdept_controller.go`、`sysdept_service.go`、`models/sysdept_model.go`），再在 `sysmgr/00_registercontroller.go` 里加一段。
 
 - **结构体**（`sysmgr/models/<页面>_model.go`）：和表对应的结构体带 `db`、`json` 标签，接口里的字段名和列名一样。表单结构体另外带校验用的标签：`validate`（规则，写法见 go-playground/validator）、`label`（字段的中文名，校验不通过时用它生成提示）、`trim:"true"`（先去掉首尾空白再校验）、`default`（没传时的默认值）、`msg`（直接指定提示）。
-- **服务**（`<页面>_service.go`）：结构体内嵌 `service.Service`，方法的第一个参数是 `pnctx *pncontext.PnContext`，用 `pnctx.DB` 查库。SQL 手写，值一律走参数；`LIKE` 的值先过 `utils.EscapeLikeParam`。要事务用 `pnctx.Tx`。
+- **服务**（`<页面>_service.go`）：结构体内嵌 `pageservice.PageService`（页面服务的基类，在 `core/pageservice`；`core/service` 是服务插件的接口，不是它），方法的第一个参数是 `pnctx *pncontext.PnContext`，用 `pnctx.DB` 查库。SQL 手写，值一律走参数；`LIKE` 的值先过 `utils.EscapeLikeParam`。要事务用 `pnctx.Tx`。
 - **控制器**（`<页面>_controller.go`）：结构体内嵌 `controller.ControllerBase`。一个操作一个方法 `Page_<act>(pnctx *pncontext.PnContext) error`，act 是方法名去掉 `Page_` 再转成小写。方法里用 `pnctx.Bind(&表单)` 取参数并校验；成功 `pnctx.RespOK(数据, 提示)`，业务上不行 `pnctx.RespErr(错误码, 提示)`；别的错误直接 `return err`，由统一的错误出口转成响应、记日志。删除类的操作先看 `core.GConfig.OpenDataDelete`。列表没有数据时返回 `[]`，不返回 `null`。
 - **注册**：`routers.RegisterController(core.GConfig, "web", 页面地址, 控制器)`；不用登录的页面用 `routers.RegisterPublicController`。接口地址是 `/web<页面地址>/<act>`。控制器写了 `PageMain` 方法时，这个页面的请求全部交给它，不按 act 分。
 - **权限**：每个 act 要在菜单表 `db_sys_menus` 里有一行按钮（`menu_type = 3`，`name` 是 `m_<页面地址的最后一段>:<act>`），没有的话登录校验回 `-30001` 未配置权限。这一行的 `loged` 为真才记操作日志。超级管理员之外的人，菜单权限里要有这个 `name`，否则回 `-30002`。

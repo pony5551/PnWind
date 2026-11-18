@@ -1,16 +1,16 @@
 package sysauth
 
 import (
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
 	log "github.com/pony5551/PnWind/core/pnlogrus"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/syscore/utils"
 
 	pg "github.com/lib/pq"
 )
 
 type UserAuthService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // InsertTokenList 登记一个新令牌，返回这一行的 id。

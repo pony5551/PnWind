@@ -2,9 +2,9 @@ package sysmgr
 
 import (
 	"fmt"
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
 	log "github.com/pony5551/PnWind/core/pnlogrus"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
 	"strconv"
@@ -12,7 +12,7 @@ import (
 )
 
 type SysConfigsService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // SysConfigsListData 列表响应结构

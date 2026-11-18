@@ -15,6 +15,7 @@ import (
 	log "github.com/pony5551/PnWind/core/pnlogrus"
 	"github.com/pony5551/PnWind/core/pntask"
 	"github.com/pony5551/PnWind/core/router"
+	"github.com/pony5551/PnWind/core/service"
 	"github.com/spf13/viper"
 )
 
@@ -45,6 +46,7 @@ type SysConfig struct {
 	DbPool          *pnlibs.PnObjects[string, *database.DBConn]               //数据连接池
 	PagePool        *pnlibs.PnObjects[string, *pnlibs.PnObjects[string, any]] // 页面对象池，每组路由一个，key 为路由的名字
 	Routers         []router.Router
+	Services        []service.Service                 // 服务插件：随进程启动和退出的独立功能（见 core/service）；服务开始接收连接后，Boot 按顺序调它们的 Setup
 	SysConfigCache  *pnlibs.PnObjects[string, string] // 系统参数缓存：参数表读进内存的一份，key 为 "分组.参数名"，例如 web.pageSize
 	PreSetup        func(app *fiber.App)              // 中间件注册钩子，在业务路由之前执行
 	Setup           func(app *fiber.App)              // 兜底路由钩子，在业务路由之后执行

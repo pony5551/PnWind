@@ -2,8 +2,8 @@ package sysmgr
 
 import (
 	"fmt"
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/core/util"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
@@ -13,7 +13,7 @@ import (
 
 // SysDeptService 部门业务服务层
 type SysDeptService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // ReadAll 查询部门列表（全量，前端自行处理树结构）

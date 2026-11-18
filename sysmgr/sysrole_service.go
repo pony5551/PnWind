@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/core/util"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
@@ -15,7 +15,7 @@ import (
 )
 
 type SysRoleService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // SysRoleMenuSet 角色菜单集合（用于 menusetget / menusetsave）

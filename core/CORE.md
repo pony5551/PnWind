@@ -11,6 +11,7 @@
 - 监听（可选的 PROXY 协议）和性能剖析（pprof）
 - 雪花ID生成器初始化
 - 任务管理：定时任务和常驻的后台协程
+- 服务插件：随进程启动和退出的独立功能（`service.Service`，在 `core/service`），见"服务插件"
 - 优雅退出机制
 
 内核只做基础设施，不知道业务的约定：页面的注册和分发、鉴权、操作日志都在 `syscore`。
@@ -32,7 +33,8 @@ core/
 ├── pncontext/         请求上下文 PnContext（Bind、RespOK、RespErr、Tx、业务错误 Error）
 ├── validation/        请求参数的解析和校验（Bind）；govalidator/ 是字符串校验函数库
 ├── controller/        控制器基类（ControllerBase）
-├── service/           服务基类（Service）
+├── pageservice/       页面服务的基类（PageService）：每个页面的 XxxService 内嵌它
+├── service/           服务插件的接口（Service），见"服务插件"
 ├── database/          数据库连接封装（DBConn、DBConfig），支持 PostgreSQL、ClickHouse
 ├── pnlibs/            通用工具库（PnObjects、PnIDGenerator、PnQueue、ExitWatch 等）
 ├── pnlogrus/          日志（log.Println、log.Errorf 这一套函数，底层是 zap），见"日志"
@@ -69,6 +71,7 @@ type SysConfig struct { ... }
 | `DbPool` | `*PnObjects[string, *database.DBConn]` | 数据库连接池，key 为数据库标签（如 "db1"）|
 | `PagePool` | `*PnObjects[string, *PnObjects[string, any]]` | 页面对象池，每组路由一个，key 为这一组的名字（如 "web"）|
 | `Routers` | `[]router.Router` | 各组路由，`Boot` 按顺序逐组安装 |
+| `Services` | `[]service.Service` | 服务插件，服务开始接收连接后 `Boot` 按顺序调它们的 `Setup`，见"服务插件" |
 | `SysConfigCache` | `*PnObjects[string, string]` | 系统参数缓存：参数表读进内存的一份，key 为 "分组.参数名"，值是参数值。由 `syscore/utils` 的 `LoadSysConfig` 在启动时和点"加载设置"时填；现在还没有代码从里面读 |
 | `PreSetup` | `func(*fiber.App)` | 中间件注册钩子，在业务路由之前执行 |
 | `Setup` | `func(*fiber.App)` | 兜底路由钩子，在业务路由之后执行 |
@@ -123,6 +126,8 @@ Setup(app)              ← 兜底静态文件层（前端页面在这里）
 - 要对业务请求生效的中间件**不要**放在 `Setup` 里：它排在业务路由后面，被业务路由接走的请求走不到它
 - 鉴权不在这两个钩子里：它挂在每组路由的每个页面上（`syscore/routers` 的 `SysRouter.Auth`）
 
+服务插件不在这里面：它的 `Setup` 在服务开始接收连接之后才调，那时往 `app` 上挂路由不生效（见"服务插件"）。
+
 ---
 
 ## Boot() 启动流程
@@ -156,17 +161,18 @@ Boot(c *SysConfig, exitFn func() error) error
 │       ├── net.Listen("tcp", ServerAddr)：端口被占用时 Boot 直接返回错误，不启动
 │       ├── 配置里开了 ProxyProtocol 时包装为 proxyproto.Listener（见下面"PROXY 协议说明"）
 │       ├── 配置了 PprofAddr 时启动性能剖析服务（见下面"性能剖析（pprof）说明"）
-│       └── goroutine 里 app.Listener(ln)，Boot 等它开始接收连接，然后开始任务调度（Tasks.StartTask）
+│       └── goroutine 里 app.Listener(ln)，Boot 等它开始接收连接，然后开始任务调度（Tasks.StartTask），
+│           再按 Services 的顺序调每个插件的 Setup(app)（见"服务插件"）
 │
 └── 8. ExitWatch 登记退出信号并阻塞等待，收到后依次执行（每一步都等到做完，不设超时）
-        ├── Tasks.Stop()：不再调度，等正在执行的定时任务和常驻协程全部结束（这期间 HTTP 还在线）
+        ├── Tasks.Stop()：不再调度，等正在执行的定时任务和常驻协程（服务插件登记的也在内）全部结束（这期间 HTTP 还在线）
         ├── exitFn（业务自己的清理；这时任务都已经结束，HTTP 还在线）
         ├── app.Shutdown()：不再接收新连接，等进行中的请求全部完成
         ├── 清空各页面对象池，断开所有数据库连接
         └── 停止性能剖析服务：等正在进行的剖析做完
 ```
 
-第 8 步要等服务开始接收连接之后才开始：在那之前 `app.Shutdown()` 关不掉监听。退出信号也是到这一步才登记（在 `pnlibs.ExitWatch` 里）：在这之前——读配置、连库、装路由、打开端口——收到退出信号，按系统默认处理，进程立刻结束，不走退出流程。这段时间要它退出的只能是人或者部署工具，直接退出就是对的。从这一步起收到的退出信号才走上面的退出流程。
+第 8 步要等服务开始接收连接之后才开始：在那之前 `app.Shutdown()` 关不掉监听。退出信号也是到这一步才登记（在 `pnlibs.ExitWatch` 里）：在这之前——读配置、连库、装路由、打开端口、调服务插件的 Setup——收到退出信号，按系统默认处理，进程立刻结束，不走退出流程。这段时间要它退出的只能是人或者部署工具，直接退出就是对的。从这一步起收到的退出信号才走上面的退出流程。
 
 等待期间再来的退出信号只记一条日志，不打断正在做的清理。
 
@@ -310,6 +316,25 @@ err = tasks.Go("消费订单消息", func(ctx context.Context) error {
 - 同一个任务上一轮没跑完，到点的这一轮跳过（记一条日志），不会重叠。删除之后马上重新添加同名的任务也一样：旧的那一轮跑完之前，新任务不启动。任务返回错误、panic 都只记日志，不影响下一轮，进程不退出。
 - 管理用的方法：`GetAllTasks()`（每个任务上次、下次执行的时间，耗时，执行、失败、跳过的次数）、`RunTask(名字)` 手动触发、`PauseTask` / `ResumeTask` 暂停和恢复、`DeleteTask`、`GetAllGos()`。
 - 退出时 `Boot` 一直等正在执行的任务和所有常驻协程返回，不设超时（见"Boot() 启动流程"第 8 步）。任务函数的 `ctx` 不会因为退出而取消，任务照常跑完；常驻协程不看 `Quit()` 的话，进程就退不掉；`exitFn` 在任务全部结束之后才执行，不能指望它来通知常驻协程。不要在任务函数、常驻协程里调 `Tasks.Stop()`，它会等自己。
+
+---
+
+## 服务插件
+
+服务插件是不属于哪个页面、随进程启动和退出的一块功能。接口是 `core/service` 包的 `Service`：
+
+```go
+type Service interface {
+    Setup(app *fiber.App)
+}
+```
+
+- `main.go` 里建好插件，在调 `Boot` 之前放进列表：`core.GConfig.Services = append(core.GConfig.Services, 插件)`。现在列表是空的。
+- `Boot` 等服务开始接收连接、开始调度定时任务之后，按列表的顺序调每个插件的 `Setup`，都调完了才登记退出信号。
+- 插件在 `Setup` 里启动自己，要很快返回：常驻的部分用 `core.GConfig.Tasks.Go` 登记成常驻协程，看 `Quit()` 收尾，退出时内核一直等它返回（见"任务管理"）。`Setup` 执行期间收到退出信号，进程按系统默认立刻结束。
+- 这时路由树已经建好，在 `Setup` 里往 `app` 上挂的路由、中间件不生效；要挂路由的功能放进 `PreSetup`。
+- `Setup` 的参数里不带内核的配置：`core` import 了 `core/service`，接口再提到 `SysConfig` 就成了循环引用。插件要用内核的东西，从全局的 `core.GConfig` 取。
+- 页面的业务服务（`XxxService`）不是插件，内嵌的是 `core/pageservice` 的 `PageService`，不放进 `Services`。
 
 ---
 

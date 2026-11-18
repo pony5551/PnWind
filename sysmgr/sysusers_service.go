@@ -2,9 +2,9 @@ package sysmgr
 
 import (
 	"fmt"
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
 	log "github.com/pony5551/PnWind/core/pnlogrus"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/core/util"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
@@ -17,7 +17,7 @@ import (
 
 // SysUsersService 用户管理页的服务（用户表 db_sys_users）
 type SysUsersService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // SysUsersListData 用户列表分页数据

@@ -2,9 +2,9 @@ package sysmgr
 
 import (
 	"fmt"
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
 	log "github.com/pony5551/PnWind/core/pnlogrus"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/core/util"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
@@ -16,7 +16,7 @@ import (
 
 // SysAdminService 管理员管理页的服务（管理员表 db_sys_admin）
 type SysAdminService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // SysAdminListData 管理员列表分页数据

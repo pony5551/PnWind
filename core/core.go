@@ -6,6 +6,7 @@ import (
 	log "github.com/pony5551/PnWind/core/pnlogrus"
 	"github.com/pony5551/PnWind/core/pntask"
 	"github.com/pony5551/PnWind/core/router"
+	"github.com/pony5551/PnWind/core/service"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/template/html/v2"
@@ -34,6 +35,7 @@ func NewSysConfig() *SysConfig {
 		DbPool:         pnlibs.NewPnObjects[string, *database.DBConn](pnlibs.NewStringHash()),
 		PagePool:       pnlibs.NewPnObjects[string, *pnlibs.PnObjects[string, any]](pnlibs.NewStringHash()),
 		Routers:        []router.Router{},
+		Services:       []service.Service{},
 		SysConfigCache: pnlibs.NewPnObjects[string, string](pnlibs.NewStringHash()),
 	}
 	// 雪花 ID 生成器不在这里建，也不用在这里读配置：这个函数在包初始化时就执行，比 main 早。
@@ -58,8 +60,9 @@ var GConfig = NewSysConfig()
 //   5. 业务路由注册（web / api）
 //   6. Setup 执行（静态文件兜底路由；走到这一步的请求不记访问日志）
 //   7. 启动监听（配置里开了 ProxyProtocol 时解析 PROXY 协议头）和性能剖析（配置了 PprofAddr 才开），见 listen.go
-//   8. 等服务开始接收连接后，开始任务调度（见 pntask），等退出信号，优雅关闭（每一步都等到做完，不设超时）：
-//      等定时任务和常驻协程全部结束 → exitFn → 停 HTTP、断开数据库 → 停性能剖析
+//   8. 等服务开始接收连接后，开始任务调度（见 pntask）、安装服务插件（Services，见 core/service），
+//      等退出信号，优雅关闭（每一步都等到做完，不设超时）：
+//      等定时任务、常驻协程（服务插件常驻的部分也是常驻协程）全部结束 → exitFn → 停 HTTP、断开数据库 → 停性能剖析
 //
 // 退出信号到第 8 步才登记：在这之前（服务还在启动）收到退出信号，进程按系统默认立刻结束。
 //
@@ -144,6 +147,10 @@ func Boot(c *SysConfig, exitFn func() error) error {
 	<-ln.Ready()
 	// 服务开始接收连接了，开始按时间表调度定时任务（见 pntask）
 	c.Tasks.StartTask()
+	// 安装服务插件：插件在 Setup 里启动自己（见 core/service）
+	for _, plugin := range c.Services {
+		plugin.Setup(app)
+	}
 
 	// 监听信号 优雅退出http服务
 	pnlibs.ExitWatch("core.Boot",

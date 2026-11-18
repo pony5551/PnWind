@@ -2,9 +2,9 @@ package sysmgr
 
 import (
 	"fmt"
+	"github.com/pony5551/PnWind/core/pageservice"
 	"github.com/pony5551/PnWind/core/pncontext"
 	log "github.com/pony5551/PnWind/core/pnlogrus"
-	"github.com/pony5551/PnWind/core/service"
 	"github.com/pony5551/PnWind/syscore/utils"
 	"github.com/pony5551/PnWind/sysmgr/models"
 	"strconv"
@@ -13,7 +13,7 @@ import (
 
 // SysLogOptService 操作日志业务服务层
 type SysLogOptService struct {
-	service.Service
+	pageservice.PageService
 }
 
 // SysLogOptListData 操作日志列表分页数据
