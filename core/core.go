@@ -149,7 +149,11 @@ func Boot(c *SysConfig, exitFn func() error) error {
 	c.Tasks.StartTask()
 	// 安装服务插件：插件在 Setup 里启动自己（见 core/service）
 	for _, plugin := range c.Services {
-		plugin.Setup(app)
+		err := plugin.Setup(app)
+		if err != nil {
+			log.Errorln("Boot Error:", err)
+			return err
+		}
 	}
 
 	// 监听信号 优雅退出http服务
