@@ -37,6 +37,7 @@ func NewSysConfig() *SysConfig {
 		Routers:        []router.Router{},
 		Services:       []service.Service{},
 		SysConfigCache: pnlibs.NewPnObjects[string, string](pnlibs.NewStringHash()),
+		SysExtension:   pnlibs.NewPnObjects[string, any](pnlibs.NewStringHash()),
 	}
 	// 雪花 ID 生成器不在这里建，也不用在这里读配置：这个函数在包初始化时就执行，比 main 早。
 	// 节点号 DeviceId 要等 main 读完配置才有，生成器由 Boot 第 1 步按它创建

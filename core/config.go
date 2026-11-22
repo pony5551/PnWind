@@ -51,6 +51,7 @@ type SysConfig struct {
 	PreSetup        func(app *fiber.App)              // 中间件注册钩子，在业务路由之前执行
 	Setup           func(app *fiber.App)              // 兜底路由钩子，在业务路由之后执行
 	SetupViewEngine func(e any)
+	SysExtension    *pnlibs.PnObjects[string, any] // 系统扩展：由各个模块自己定义的结构体，Boot 里按模块的顺序建好放进来，供模块间互相调用
 }
 
 // LoadConfig 读取配置文件 path（例如 ./conf/dbconfig.json），放进 c.Conf。
